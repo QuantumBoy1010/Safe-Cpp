@@ -12,7 +12,7 @@ On Windows, in order to avoid the confusion between the `.lib` files that go wit
 
 
 ## 📖 Reference & Guide
-See [Reference](Safe/Reference.md) to view API reference and [Guide](Safe/Guide.md) to view guide.
+Navigate to [Reference](Safe/Reference.md) to view API reference and [Guide](Safe/Guide.md) to view guide.
 
 
 ## 💡 Examples
