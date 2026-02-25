@@ -8,7 +8,7 @@ Extract the package to your project directory and specify the paths to the libra
 
 
 > [!NOTE]
-On Windows, in order to avoid the confusion between the `.lib` files that go with `.dll` in dynamic libraries, `Safe` will use `.sll` as the file extension for static libraries. Linking to the static libraries with `.sll` extension is fine like linking to `.lib` files in other projects.
+On Windows, in order to avoid the confusion between the `.lib` files that go with `.dll` in dynamic libraries, `Safe` will use `.sll` as the file extension for static libraries. Linking to the static libraries with `.sll` extension is fine like linking to `.lib` files in other projects. All library packages are thoroughly scanned with ESET Smart Security Premium on a Windows 10 environment prior to release to ensure they are free of malicious code.
 
 
 ## 📖 Reference & Guide
@@ -17,9 +17,6 @@ Navigate to [Reference](Safe/Reference.md) to view API reference and [Guide](Saf
 
 ## 💡 Examples
 ```c++
-#include <cstdlib>
-#include <utility>
-
 class Example : public Safe::SafeContextBase //or `class Example safe`
 {
 public:
@@ -56,6 +53,7 @@ int main()
 	Example* pointerAlias = pointer;
 	Safe::SafeContextBase::recycle(dynamic_cast<Safe::SafeContextBase*>(pointer)); // `pointer` is no longer meaningful after recycling.
 	Example& repurposedReference = Safe::SafeContextBase::repurpose<Example>();
+	// No need to deallocate via `pointer`, `anotherPointer` or `pointerAlias` anymore. Doing so will lead to program termination or even compilation error(s).
 
 	return 0;
 };
