@@ -19,7 +19,7 @@
 
 #pragma once
 
-/** Inclusion(s) of C++ & Microsoft Windows standard library header file(s).**/
+/** Inclusion(s) of C++ standard library header file(s).**/
 #include <string>
 
 /** Inclusion(s) of project's C++ header file(s).**/

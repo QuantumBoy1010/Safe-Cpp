@@ -19,11 +19,12 @@
 
 #pragma once
 
-/** Inclusion(s) of C++ & Microsoft Windows standard library header file(s).**/
+/** Inclusion(s) of C++ standard library header file(s).**/
 #include <exception>
 #include <string>
 
 /** Inclusion(s) of project's C++ header file(s).**/
+#include "SafeContextBase.h"
 #include "SafeNamespace.h"
 #include "SafeTrade.h"
 
@@ -38,7 +39,7 @@ namespace Safe
 	/// <summary>
 	///		C++ class: `SafeContextException`.
 	/// </summary>
-	class SafeContextException final : public std::exception
+	class SafeContextException final : public std::exception,public SafeContextBase
 	{
 	private:
 		std::string message;

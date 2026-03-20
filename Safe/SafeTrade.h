@@ -19,8 +19,9 @@
 
 #pragma once
 
-/** Inclusion(s) of C++ & Microsoft Windows standard library header file(s).**/
+/** Inclusion(s) of C++ standard library header file(s).**/
 #include <exception>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -61,5 +62,6 @@ template struct CPP_SAFE_LIBRARY_TRADE std::_Simple_types<const void*>;
 template class CPP_SAFE_LIBRARY_TRADE std::_Vector_val<std::_Simple_types<const void*>>;
 template class CPP_SAFE_LIBRARY_TRADE std::_Compressed_pair<std::allocator<const void*>,std::_Vector_val<std::_Simple_types<const void*>>,true>;
 template class CPP_SAFE_LIBRARY_TRADE std::vector<const void*,std::allocator<const void*>>;
+template class CPP_SAFE_LIBRARY_TRADE std::function<void()>;
 
 #endif

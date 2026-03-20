@@ -58,4 +58,5 @@ namespace Safe
 {
 	class CPP_SAFE_LIBRARY_TRADE SafeContextBase;
 	class CPP_SAFE_LIBRARY_TRADE SafeContextException;
+	class CPP_SAFE_LIBRARY_TRADE SafeEvent;
 };
