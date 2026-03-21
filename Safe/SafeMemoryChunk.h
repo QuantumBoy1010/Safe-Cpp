@@ -1,5 +1,5 @@
 /// <summary>
-///		Legal and Licensing Information
+///		Legal & Licensing Information
 /// </summary>
 /// <remarks>
 ///		Required Notice: Copyright@2026 Duc Nguyen (workofduc@gmail.com) [cite: 6, 7]
@@ -127,7 +127,7 @@ namespace Safe
 		/// <summary>
 		///		Destructor of `SafeMemoryChunk`.
 		/// </summary>
-		inline virtual ~SafeMemoryChunk() noexcept(true) override
+		inline virtual ~SafeMemoryChunk() noexcept(false) override
 		{
 			if (this->composedBufferPointer != nullptr)
 			{

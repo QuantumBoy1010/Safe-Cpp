@@ -1,5 +1,5 @@
 /// <summary>
-///		Legal and Licensing Information
+///		Legal & Licensing Information
 /// </summary>
 /// <remarks>
 ///		Required Notice: Copyright@2026 Duc Nguyen (workofduc@gmail.com) [cite: 6, 7]
@@ -66,18 +66,18 @@ namespace Safe
 		///		Move constructor of `SafeContextException`.
 		/// </summary>
 		/// <param name="message"></param>
-		explicit SafeContextException(std::string&& message) noexcept;
+		explicit SafeContextException(std::string&& message);
 
 		/// <summary>
 		///		Move constructor of `SafeContextException`.
 		/// </summary>
 		/// <param name="other"></param>
-		SafeContextException(SafeContextException&& other) noexcept;
+		SafeContextException(SafeContextException&& other) noexcept(false);
 
 		/// <summary>
 		///		Destructor of `SafeContextException`.
 		/// </summary>
-		~SafeContextException() noexcept override;
+		virtual ~SafeContextException() noexcept override;
 
 		/// <summary>
 		///		dynamic

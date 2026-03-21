@@ -4,7 +4,7 @@
 **Safe** is a library that implements a safe context for C++. It is an effort to provide traits for types that reduce memory leaks, double deletions and other memory errors.
 
 
-### Quick start
+### Quick Start
 
 - Requirements: C\+\+17 or later and a compatible C++ compiler.
 - Choose the library type to link to your project(s).
@@ -15,7 +15,7 @@
 	- If using the static library version of `Safe` on Windows, select `/MTd` for Debug mode or `/MT` for Release mode.
 
 	
-### Basic usage
+### Basic Usage
 
 It's straightforward to use the `Safe` library. Below are short examples that demonstrate the common APIs. These examples use a class called `Example` that inherits from `Safe::SafeContextBase`.
 
@@ -89,6 +89,8 @@ public:
 
 1) Allocate and construct an instance of `Example`
 
+	The below example shows how to allocate an instance of `Example` on memory heap.
+
 ```c++
 int main()
 {
@@ -99,6 +101,8 @@ int main()
 
 
 2) Recycle and repurpose an instance of `Example`
+
+	The below example shows how to properly recycle a polymorphic instance of `SafeContextBase`.
 
 ```c++
 int main()
@@ -115,6 +119,8 @@ int main()
 
 3) Create and dispose a derived chunk
 
+	The below example shows that the memory chunk is still accessible even after being disposed.
+
 ```c++
 int main()
 {
@@ -127,7 +133,10 @@ int main()
 };
 ```
 
-4) Access a random instance in another outer scope
+4) Access a random instance in another outer
+
+	The below example shows that `reference` is always valid as the instance it refers to is allocated on memory heap.
+
 ```c++
 int main()
 {
@@ -139,13 +148,88 @@ int main()
 };
 ```
 
+5) Use an event type with an event handler type
+
+	The below example illustrates a way to declare an event called `MoveEvent` and use another type called `Button` to handle the event using Windows API.
+
+```c++
+#include <Windows.h>
+
+using namespace std;
+
+class MoveEvent : public Safe::SafeEvent
+{
+public:
+	double x;
+	double y;
+
+
+	MoveEvent(const double& x,const double& y,const Safe::SafeEvent::SafeEventOccurrence& occurrence) : x(x),y(y),Safe::SafeEvent(occurrence)
+	{
+
+	};
+
+	~MoveEvent() = default;
+};
+
+class Button final : public Safe::SafeContextBase
+{
+public:
+	Safe::SafeEventHandler<MoveEvent> onMove;
+
+
+	Button() : Safe::SafeContextBase()
+	{
+		this->onMove = *(::new Safe::SafeEventHandler<MoveEvent>());
+	};
+
+	virtual ~Button() override = default;
+
+
+	void handleClick(const MoveEvent& moveEvent)
+	{
+		(this->onMove).handle(moveEvent);
+	};
+};
+
+int main()
+{
+	Button* buttonPointer = ::new Button();
+	buttonPointer->onMove = [](const MoveEvent& event)
+	{
+		cout << "Mouse moved to coordinates: (" << event.x << "," << event.y << ")." << endl;
+	};
+
+	MoveEvent* eventPointer = ::new MoveEvent(0,0,[&eventPointer,&buttonPointer]() noexcept -> void
+	{
+		POINT mousePoint;
+
+		if (GetCursorPos(&mousePoint) && ((eventPointer->x != mousePoint.x) || (eventPointer->y != mousePoint.y)))
+		{
+			eventPointer->x = mousePoint.x;
+			eventPointer->y = mousePoint.y;
+			buttonPointer->handleClick(*eventPointer);
+		}
+
+		if ((mousePoint.x == 0) && (mousePoint.y == 0))
+		{
+			eventPointer->cancel();
+		}
+	});
+	
+	eventPointer->broadcast();
+
+	return 0;
+};
+```
+
 
 ### Notice
 
-- There are several limitations of `Safe` that originate from language constraints in C++. These limitations are considered "unsafe" in a similar sense to unsafe contexts in languages like C# or Rust.
-- The first one is, if a type that inherits from `Safe::SafeContextBase` and also manages resource types that don't inherit `Safe::SafeContextBase`, then those resources are deemed "unmanaged" and must be managed manually (that is, in the type's destructor), just like in C#'s destructors and its `IDisposable` interface.
-- If a type that inherits from `Safe::SafeContextBase` also manages resources that do not derive from `SafeContextBase`, those resources are deemed "unmanaged" and must be managed manually (for example, in the type's destructor).
-- Constructors for types derived from `Safe::SafeContextBase` should be invoked using the global `new` (i.e. `::new`), not placement `new`. Manual arena allocations with placement new will likely cause crashes because the library manages and frees underlying buffers differently. This is unsafe and leads to undefined behaviors.
+- There are several limitations of `Safe` that originate from language constraints of C++. These limitations are considered "unsafe" in a similar sense to unsafe contexts in languages like C# or Rust.
+- The first one is, if a type that inherits from `SafeContextBase` and also manages resource types that don't inherit `SafeContextBase`, then those resources are deemed "unmanaged" and must be managed manually (that is, in the type's destructor), just like in C#'s destructors and its `IDisposable` interface.
+- If a polymorphic instance of `SafeContextBase` is allocated on memory stack, unlike the default allocation on memory heap, it shouldn't be used with reference(s) and pointer(s) as the reference(s) and the pointer(s) can potentially exist longer than the instance, and this leads to undefined behaviors. Pointer(s) and especially reference(s) in C++ behave as alias and it doesn't have any mechanism to stop them from referencing deallocated instances on memory stack. Always use reference(s) and pointer(s) with instance(s) allocated on heap-based memory, and use instance(s) allocated on stack-based memory as value type(s).
+- Constructors for types derived from `SafeContextBase` should be invoked using the global `new` (i.e. `::new`), not placement `new`. Manual arena allocations with placement new will likely cause crashes because the library manages and frees underlying buffers differently. This is unsafe and leads to undefined behaviors.
 
 ```c++
 Example* chunkPointer = static_cast<Example*>(::operator new(sizeof(Example) * cardinality));
@@ -168,10 +252,10 @@ delete pointer; //This is very dangerous
 
 - Finally, out-of-memory conditions must be handled by the application. Large managed instances should be recycled and repurposed when they are no longer needed; the same applies to chunks. Unlike Rust where the ownership system exists, the valid references or pointers to recycled instances will potentially be meaningless and can unexpectedly modify the repurposed instances.
 
-- All of these issues are considered "unsafe". Contexts that only use managed types are the intended safe usage.
+- All of these issues are considered "unsafe". Contexts that only use managed types are the intended safe usage. I will continue working to address these limitations to enhance the safety of the safe context.
 
 
-### Thread-safety and concurrency notes
+### Thread-safety
 
 The library is implemented to be thread-safe.
 
@@ -181,7 +265,7 @@ The library is implemented to be thread-safe.
 	Duc Nguyen (Myself)
 
 
-### Legal and Licensing Information
+### Legal & Licensing Information
 
 Required Notice: Copyright@2026 Duc Nguyen (workofduc@gmail.com) 
 

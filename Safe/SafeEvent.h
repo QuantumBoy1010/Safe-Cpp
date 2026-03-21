@@ -1,5 +1,5 @@
 /// <summary>
-///		Legal and Licensing Information
+///		Legal & Licensing Information
 /// </summary>
 /// <remarks>
 ///		Required Notice: Copyright@2026 Duc Nguyen (workofduc@gmail.com) [cite: 6, 7]
@@ -25,6 +25,9 @@
 
 /** Inclusion(s) of project's C++ header file(s).**/
 #include "SafeContextBase.h"
+#include "SafeFunction.h"
+#include "SafeNamespace.h"
+#include "SafeTrade.h"
 
 
 /** Main code.**/
@@ -34,13 +37,20 @@
 /// </summary>
 namespace Safe
 {
+
+#if (defined(CPP_SAFE_DYNAMICALLY_LINKED_LIBRARY_EXPORT) || defined(CPP_SAFE_DYNAMICALLY_LINKED_LIBRARY_IMPORT)) && defined(WINDOWS_VISUAL_CPP)
+
+	template class CPP_SAFE_LIBRARY_TRADE SafeFunction<void(void)>;
+
+#endif
+
 	/// <summary>
 	///		C++ class: `SafeEvent`.
 	/// </summary>
 	class SafeEvent : public SafeContextBase
 	{
 	public:
-		typedef std::function<void()> SafeEventOccurrence;
+		typedef SafeFunction<void()> SafeEventOccurrence;
 
 	private:
 		bool cancellation;
@@ -62,42 +72,41 @@ namespace Safe
 		///		Copy constructor of `SafeEvent`.
 		/// </summary>
 		/// <param name="other"></param>
-		SafeEvent(const SafeEvent& other) noexcept;
+		SafeEvent(const SafeEvent& other);
 
 		/// <summary>
 		///		Move constructor of `SafeEvent`.
 		/// </summary>
 		/// <param name="occurrence"></param>
-		explicit SafeEvent(SafeEventOccurrence&& occurrence) noexcept;
+		explicit SafeEvent(SafeEventOccurrence&& occurrence) noexcept(false);
 
 		/// <summary>
 		///		Move constructor of `SafeEvent`.
 		/// </summary>
 		/// <param name="other"></param>
-		SafeEvent(SafeEvent&& other) noexcept;
+		SafeEvent(SafeEvent&& other) noexcept(false);
 
 		/// <summary>
 		///		Destructor of `SafeEvent`.
 		/// </summary>
-		virtual ~SafeEvent() override;
+		virtual ~SafeEvent() noexcept(false) override;
 
 		/// <summary>
 		///		dynamic
-		///		noexcept
 		///		operator=
 		/// </summary>
 		/// <param name="other"></param>
 		/// <returns>SafeEvent&amp;</returns>
-		SafeEvent& operator=(const SafeEvent& other) noexcept;
+		SafeEvent& operator=(const SafeEvent& other);
 
 		/// <summary>
 		///		dynamic
-		///		noexcept
+		///		noexcept(false)
 		///		operator=
 		/// </summary>
 		/// <param name="other"></param>
 		/// <returns>SafeEvent&amp;</returns>
-		SafeEvent& operator=(SafeEvent&& other) noexcept;
+		SafeEvent& operator=(SafeEvent&& other) noexcept(false);
 
 		/// <summary>
 		///		dynamic
@@ -172,26 +181,27 @@ namespace Safe
 	/// <summary>
 	///		C++ class template: `SafeEventHandler`.
 	/// </summary>
-	template<typename GenericTypeOfEvent> class SafeEventHandler final : public SafeContextBase
+	/// <typeparam name="GenericTypeOfSafeEvent"></typeparam>
+	template<typename GenericTypeOfSafeEvent> class SafeEventHandler final : public SafeContextBase
 	{
-		static_assert((std::is_base_of<SafeEvent,GenericTypeOfEvent>::value == true),"`GenericTypeOfEvent` must be a type that inherits from `SafeEvent`!");
+		static_assert((std::is_base_of<SafeEvent,GenericTypeOfSafeEvent>::value == true),"`GenericTypeOfSafeEvent` must be a type that inherits from `SafeEvent`!");
 
 	private:
-		std::function<void(const GenericTypeOfEvent&)> composedHandle;
+		SafeFunction<void(const GenericTypeOfSafeEvent&)> composedHandle;
 
 	public:
 		/// <summary>
 		///		C++ functional type: `SafeEventHandle`.
 		/// </summary>
-		typedef std::function<void(const SafeEvent&)> SafeEventHandle;
+		typedef SafeFunction<void(const SafeEvent&)> SafeEventHandle;
 
 
 		/// <summary>
 		///		Constructor of `SafeEventHandler`.
 		/// </summary>
-		inline explicit SafeEventHandler() noexcept : SafeContextBase()
+		inline explicit SafeEventHandler() : SafeContextBase()
 		{
-			this->composedHandle = [](const GenericTypeOfEvent&) -> void
+			this->composedHandle = [](const GenericTypeOfSafeEvent&) -> void
 			{
 
 			};
@@ -201,7 +211,7 @@ namespace Safe
 		///		Constructor of `SafeEventHandler`.
 		/// </summary>
 		/// <param name="eventHandle"></param>
-		inline explicit SafeEventHandler(const std::function<void(const GenericTypeOfEvent&)>& eventHandle) : SafeContextBase()
+		inline explicit SafeEventHandler(const std::function<void(const GenericTypeOfSafeEvent&)>& eventHandle) : SafeContextBase()
 		{
 			this->composedHandle = eventHandle;
 		};
@@ -210,7 +220,7 @@ namespace Safe
 		///		Copy constructor of `SafeEventHandler`.
 		/// </summary>
 		/// <param name="other"></param>
-		inline SafeEventHandler(const SafeEventHandler<GenericTypeOfEvent>& other) : SafeContextBase(static_cast<const SafeContextBase&>(other))
+		inline SafeEventHandler(const SafeEventHandler<GenericTypeOfSafeEvent>& other) noexcept(false) : SafeContextBase(static_cast<const SafeContextBase&>(other))
 		{
 			this->composedHandle = other.composedHandle;
 		};
@@ -219,24 +229,24 @@ namespace Safe
 		///		Move constructor of `SafeEventHandler`.
 		/// </summary>
 		/// <param name="eventHandle"></param>
-		inline explicit SafeEventHandler(std::function<void(const GenericTypeOfEvent&)>&& eventHandle) : SafeContextBase()
+		inline explicit SafeEventHandler(std::function<void(const GenericTypeOfSafeEvent&)>&& eventHandle) : SafeContextBase()
 		{
-			this->composedHandle = static_cast<std::function<void(const GenericTypeOfEvent&)>&&>(eventHandle);
+			this->composedHandle = static_cast<std::function<void(const GenericTypeOfSafeEvent&)>&&>(eventHandle);
 		};
 
 		/// <summary>
 		///		Move constructor of `SafeEventHandler`.
 		/// </summary>
 		/// <param name="other"></param>
-		inline SafeEventHandler(SafeEventHandler<GenericTypeOfEvent>&& other) noexcept : SafeContextBase(static_cast<SafeContextBase&&>(other))
+		inline SafeEventHandler(SafeEventHandler<GenericTypeOfSafeEvent>&& other) noexcept(false) : SafeContextBase(static_cast<SafeContextBase&&>(other))
 		{
-			this->composedHandle = static_cast<std::function<void(const GenericTypeOfEvent&)>&&>(other.composedHandle);
+			this->composedHandle = static_cast<std::function<void(const GenericTypeOfSafeEvent&)>&&>(other.composedHandle);
 		};
 
 		/// <summary>
 		///		Destructor of `SafeEventHandler`.
 		/// </summary>
-		inline virtual ~SafeEventHandler() noexcept override = default;
+		inline virtual ~SafeEventHandler() noexcept(false) override = default;
 
 		/// <summary>
 		///		dynamic
@@ -244,8 +254,8 @@ namespace Safe
 		///		operator=
 		/// </summary>
 		/// <param name="eventHandle"></param>
-		/// <returns>SafeEventHandler&amp;</returns>
-		inline SafeEventHandler& operator=(const std::function<void(const GenericTypeOfEvent&)>& eventHandle)
+		/// <returns>SafeEventHandler&lt;GenericTypeOfSafeEvent&gt;&amp;</returns>
+		inline SafeEventHandler<GenericTypeOfSafeEvent>& operator=(const std::function<void(const GenericTypeOfSafeEvent&)>& eventHandle)
 		{
 			this->composedHandle = eventHandle;
 
@@ -258,10 +268,10 @@ namespace Safe
 		///		operator=
 		/// </summary>
 		/// <param name="eventHandle"></param>
-		/// <returns>SafeEventHandler&amp;</returns>
-		inline SafeEventHandler& operator=(std::function<void(const GenericTypeOfEvent&)>&& eventHandle)
+		/// <returns>SafeEventHandler&lt;GenericTypeOfSafeEvent&gt;&amp;</returns>
+		inline SafeEventHandler<GenericTypeOfSafeEvent>& operator=(std::function<void(const GenericTypeOfSafeEvent&)>&& eventHandle)
 		{
-			this->composedHandle = static_cast<std::function<void(const GenericTypeOfEvent&)>&&>(eventHandle);
+			this->composedHandle = static_cast<std::function<void(const GenericTypeOfSafeEvent&)>&&>(eventHandle);
 
 			return *this;
 		};
@@ -272,8 +282,8 @@ namespace Safe
 		///		operator=
 		/// </summary>
 		/// <param name="other"></param>
-		/// <returns>SafeEventHandler&amp;</returns>
-		inline SafeEventHandler& operator=(const SafeEventHandler& other)
+		/// <returns>SafeEventHandler&lt;GenericTypeOfSafeEvent&gt;&amp;</returns>
+		inline SafeEventHandler<GenericTypeOfSafeEvent>& operator=(const SafeEventHandler<GenericTypeOfSafeEvent>& other)
 		{
 			SafeContextBase::operator=(static_cast<const SafeContextBase&>(other));
 			this->composedHandle = other.composedHandle;
@@ -284,14 +294,15 @@ namespace Safe
 		/// <summary>
 		///		dynamic
 		///		inline
+		///		noexcept(false)
 		///		operator=
 		/// </summary>
 		/// <param name="other"></param>
-		/// <returns>SafeEventHandler&amp;</returns>
-		inline SafeEventHandler& operator=(SafeEventHandler&& other)
+		/// <returns>SafeEventHandler&lt;GenericTypeOfSafeEvent&gt;&amp;</returns>
+		inline SafeEventHandler<GenericTypeOfSafeEvent>& operator=(SafeEventHandler<GenericTypeOfSafeEvent>&& other) noexcept(false)
 		{
 			SafeContextBase::operator=(static_cast<SafeContextBase&&>(other));
-			this->composedHandle = static_cast<std::function<void(const GenericTypeOfEvent&)>&&>(other.composedHandle);
+			this->composedHandle = static_cast<std::function<void(const GenericTypeOfSafeEvent&)>&&>(other.composedHandle);
 
 			return *this;
 		};
@@ -302,7 +313,7 @@ namespace Safe
 		/// </summary>
 		/// <param name="event"></param>
 		/// <returns>void</returns>
-		inline void handle(const GenericTypeOfEvent& event)
+		inline void handle(const GenericTypeOfSafeEvent& event)
 		{
 			(this->composedHandle)(event);
 		};
@@ -313,7 +324,7 @@ namespace Safe
 		/// </summary>
 		/// <param name="eventPointer"></param>
 		/// <returns>void</returns>
-		inline void handle(const GenericTypeOfEvent* const eventPointer)
+		inline void handle(const GenericTypeOfSafeEvent* const eventPointer)
 		{
 			(this->composedHandle)(*eventPointer);
 		};

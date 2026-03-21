@@ -1,5 +1,5 @@
 /// <summary>
-///		Legal and Licensing Information
+///		Legal & Licensing Information
 /// </summary>
 /// <remarks>
 ///		Required Notice: Copyright@2026 Duc Nguyen (workofduc@gmail.com) [cite: 6, 7]
@@ -79,13 +79,13 @@ namespace Safe
 		///		Copy constructor of `SafeContextBase`.
 		/// </summary>
 		/// <param name="other"></param>
-		explicit SafeContextBase(const SafeContextBase& other) noexcept(true);
+		explicit SafeContextBase(const SafeContextBase& other) noexcept(false);
 
 		/// <summary>
 		///		Move constructor of `SafeContextBase`.
 		/// </summary>
 		/// <param name="classifcation"></param>
-		explicit SafeContextBase(SafeContextBase&& other) noexcept(true);
+		explicit SafeContextBase(SafeContextBase&& other) noexcept(false);
 
 		/// <summary>
 		///		Destructor of `SafeContextBase`.

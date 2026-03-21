@@ -2,13 +2,13 @@
 
 ### Introduction
 
-`Safe` provides a runtime library that tracks every heap-allocated instance of types that inherit `Safe::SafeContextBase` and offers recycling/repurpose mechanisms. It provides a mechanism that is similar to managed contexts in programming languages like C#, that is to handle memory management automatically. However, C++ doesn't have neither garbage collectors (by standard, it's for high performance) and reference counts to the raw pointers. The term "managed types" in this library can be understood as types that inherit from `Safe::SafeContextBase` and don't need to manage memory manually.
+`Safe` provides a runtime library that tracks every heap-allocated instance of types that inherit `Safe::SafeContextBase` and offers recycling/repurpose mechanisms. It provides a mechanism that is similar to managed contexts in programming languages like C#, that is to handle memory management automatically. However, standard C++ doesn't have neither garbage collectors (for high performance) and reference counts for pointers and references (for preventing the CPU from crawling). The idea is to make sure any instance of any type that inherits from `Safe::SafeContextBase`, once allocated on memory heap, must be managed and all pointers to them are tracked. In this safe context, the default allocation is on heap-based memory, and memory allocation on stack is just an extension that bypasses the managed runtime for higher performance and flexibility. Without allowing stack-based allocation, a variable of a safe type can't be a member of another class or structure without defining them as a pointer type and reference type. C++ also doesn't overriding the default behaviors of raw pointers and references. A reference, once bound to a variable, can't be assigned to any other variable. Thus, stack-based allocation under safe context can lead to dangling pointers or dangling references.
 
-The idea is to make sure any instance of any type that inherits from `Safe::SafeContextBase` must always be allocated on memory heap, and track all pointers to them. However, unlike other programming languages like C# have automatic garbage collection for reference types (the C# classes) which rely on reference counting, C++ doesn't have any language feature that allow reference counting for pointers and references. Smart pointers are types implemented in C++ standard library which may manage memory automatically. But if the smart pointers themselves are allocated on memory heap, they must be deallocated manually and thus potentially leak memory. So, derivatives of `Safe::SafeContextBase` will never be allocated on memory stack in order to avoid dangling pointers, dangling references and memory leaks. Furthermore, the lifetimes of types that inherit `Safe::SafeContextBase` will be as long as possible to make sure the pointers/references are always valid in a program. This design will hold a lot of pressure on the memory if not used carefully.
+The term "managed types" in this library can be understood as types that inherit from `Safe::SafeContextBase` and don't need to manage memory manually. Unlike other programming languages like C# have automatic garbage collection for reference types (the C# classes) which rely on reference counting, C++ doesn't have any language feature that allow reference counting for pointer(s) and reference(s). Smart pointer types implemented in C++ standard library may manage memory automatically. But if the smart pointers themselves are allocated on memory heap, they must be deallocated manually and thus potentially leak memory. So, polymorphic instance(s) of `Safe::SafeContextBase` allocated on memory heap will have neither dangling pointer nor dangling reference nor memory leak. Furthermore, the lifetime(s) of the instance(s) will be as long as possible to make sure the pointer(s) and the reference(s) are always valid in a program. This design will hold a lot of pressure on the memory if not used carefully.
 
 You may ask if there is any way to handle the case where the memory usages of programs that use `Safe::SafeContextBase` are heavy? The only way to reclaim memory in this situation is to recycle instances that are no longer intented to be used. However, that will be confusing as you are holding a reference to an instance that has been recycled and after being repurposed, the underlying data of that instance changed dramatically. This is a trade-off for being safe, since unlike programming languages such as Rust, data in C++ is mutable by default.
 
-`Safe` also has a feature that allows bulk allocation (for memory arena) that quickly allocates multiple instances of the same type derived from `Safe::SafeContextBase`, for high performance purposes. It is the class template `Safe::SafeContextBase::SafeMemoryChunk` that is designed to create and manage memory chunks. And of course, the chunks themselves are managed as their types must derive from `Safe::SafeContextBase`.
+`Safe` also has a feature that allows bulk allocation (memory arena) that quickly allocates multiple instances of the same type derived from `Safe::SafeContextBase`, for high performance purposes. It is the class template `Safe::SafeContextBase::SafeMemoryChunk` that is designed to inherit `Safe::SafeContextBase` and be capable of creating and managing memory chunk(s). The namespace also has several utility types that provide useful features under the safe context, like `SafeFunction` and `SafeEvent`.
 
 
 ### Definitions
@@ -35,12 +35,22 @@ The library consists of a namespace called `Safe`. Namespace `Safe` offers sever
 - [SafeContextBase](#safecontextbase) — the base type for managed instances; any type that inherits this class will be managed by `Safe` runtime library and doesn't manage memory manually.
 - [SafeContextBase::SafeMemoryManager](#safecontextbasesafememorymanager) — internal type; a class that manages memory for `Safe` runtime library and is only provided with a forward declaration.
 - [SafeContextBase::SafeMemoryChunk&lt;GenericTypeOfSafeContextDerivative&gt;](#safecontextbasesafememorychunkgenerictypeofsafecontextderivative) — a fixed-size class template that performs bulk arena allocations to gain higher performance.
+- [SafeFunction](#safefunction) - a functional class that is managed and essentially wraps `std::function`.
+- [SafeEvent](#safeevent) - an event class that provides event-driven mechanisms under the safe context.
+- [SafeEventHandler&lt;GenericTypeOfSafeEvent&gt;](#safeeventhandlergenerictypeofsafeevent) - an event class that provides event-driven mechanisms under the safe context.
 - [SafeContextException](#safecontextexception) - an exception class that is used for exception handling inside namespace `Safe`.
 
 #### <a name="safecontextbase"></a> SafeContextBase
 
+##### Declaration
+
+```c++
+class SafeContextBase;
+```
+
+
 ##### Description
-	Common base class type for instances managed by the `Safe` runtime library. Inherit from this type to opt into tracking, recycling and chunk features.
+	Declared and defined in `SafeContextBase.h`. The common base class type for any instance managed by the `Safe` runtime library. Inherit from this type to opt into tracking, recycling and chunk features.
 
 
 ##### Methods
@@ -64,7 +74,7 @@ private:
 - `SafeContextBase(const SafeContextBase& other)`
 ```c++
 protected:
-	explicit SafeContextBase(const SafeContextBase& other) noexcept(true);
+	explicit SafeContextBase(const SafeContextBase& other) noexcept(false);
 ```
 
 	Copy constructor of type `SafeContextBase`. It constructs a polymorphic instance of type `SafeContextBase` from another one.
@@ -72,7 +82,7 @@ protected:
 - `SafeContextBase(SafeContextBase&& other)`
 ```c++
 protected:
-	explicit SafeContextBase(SafeContextBase&& other) noexcept(true);
+	explicit SafeContextBase(SafeContextBase&& other) noexcept(false);
 ```
 
 	Move constructor of type `SafeContextBase`. It constructs a polymorphic instance of type `SafeContextBase` from another one.
@@ -320,15 +330,29 @@ public:
 
 #### <a name="safecontextbasesafememorymanager"></a> SafeContextBase::SafeMemoryManager
 
+##### Declaration
+
+```c++
+class SafeMemoryManager;
+```
+
+
 ##### Description
 	An internal class that provides the core functionalities for `Safe` runtime library.
 
 
 #### <a name="safecontextbasesafememorychunkgenerictypeofsafecontextderivative"></a> SafeContextBase::SafeMemoryChunk&lt;GenericTypeOfSafeContextDerivative&gt;
 
+##### Declaration
+
+```c++
+template<typename GenericTypeOfSafeContextDerivative> class SafeContextBase::SafeMemoryChunk;
+```
+
+
 ##### Description
 
-	A specialized class template for bulk allocation. This class manages multiple instance(s) of type `GenericTypeOfSafeContextDerivative` on a continguous block of memory. `SafeMemoryChunk` is also a type that inherits `SafeContextBase`. `GenericTypeOfSafeContextDerivative` must be a type that inherits `SafeContextBase`.
+	Declared and defined in `SafeMemoryChunk.h`. A specialized class template for bulk allocation. This class template inherits `SafeContextBase` and manages multiple instance(s) of type `GenericTypeOfSafeContextDerivative` on a continguous block of memory. `GenericTypeOfSafeContextDerivative` must be a type that inherits `SafeContextBase`.
 
 
 ##### Methods
@@ -415,11 +439,411 @@ public:
 	This method disposes the current chunk instance, makes all elements in the current chunk instance refer to a defaulted instance. After calling this method, any access to the elements of the current chunk instance is not meaningful. Every element on that memory chunk will refer to two defaulted instances instead, one is immutable and one is mutable.
 
 
-#### <a name="safecontextexception"></a> SafeContextException
+#### <a name="safefunction"></a> SafeFunction
+
+##### Declaration
+
+```c++
+template<typename GenericType> class SafeFunction;
+template<typename GenericTypeOfReturn,typename ...GenericTypesOfArguments> class SafeFunction<GenericTypeOfReturn(GenericTypesOfArguments...)>;
+```
+
 
 ##### Description
 
-	An exception class that provides basic exception handling mechanisms merely for `Safe` runtime library. this class doesn't inherit `SafeContextBase` but `std::exception` for simplicity.
+	Declared and defined in `SafeFunction.h`. A functional class type that inherits `SafeContextBase` and wraps `std::function` under the safe context.
+
+
+##### Methods
+
+- `SafeFunction()`
+```c++
+public:
+	inline explicit SafeFunction();
+```
+
+	Default constructor of type `SafeFunction`. It constructs an instance of `SafeFunction`.
+
+- `SafeFunction(const GenericTypeOfFunction& functionallyInvocable)`
+```c++
+public:
+	template<class GenericTypeOfFunction> inline SafeFunction(const GenericTypeOfFunction& functionallyInvocable);
+```
+
+	A specialized constructor of `SafeFunction`. It constructs an instance of `SafeFunction` from a functional argument `functionallyInvocable`.
+
+- `SafeFunction(const std::function<GenericTypeOfReturn(GenericTypesOfArguments...)>& function)`
+```c++
+public:
+	inline SafeFunction(const std::function<GenericTypeOfReturn(GenericTypesOfArguments...)>& function);
+```
+
+	A specialized constructor of `SafeFunction`. It constructs an instance of `SafeFunction` from a functional argument `function`.
+
+- `SafeFunction(const SafeFunction<GenericTypeOfReturn(GenericTypesOfArguments...)>& other)`
+```c++
+public:
+	inline SafeFunction(const SafeFunction<GenericTypeOfReturn(GenericTypesOfArguments...)>& other);
+```
+	
+	Copy constructor of type `SafeFunction`. It constructs an instance of type `SafeFunction` from another one.
+
+- `SafeFunction(GenericTypeOfFunction&& functionallyInvocable)`
+```c++
+public:
+	template<class GenericTypeOfFunction> inline SafeFunction(GenericTypeOfFunction&& functionallyInvocable);
+```
+
+	A specialized move constructor of `SafeFunction`. It constructs an instance of `SafeFunction` from a functional argument `functionallyInvocable`.
+
+- `SafeFunction(std::function<GenericTypeOfReturn(GenericTypesOfArguments...)>&& function)`
+```c++
+public:
+	inline SafeFunction(std::function<GenericTypeOfReturn(GenericTypesOfArguments...)>&& function);
+```
+
+	A specialized move constructor of `SafeFunction`. It constructs an instance of `SafeFunction` from a functional argument `function`.
+
+- `SafeFunction(SafeFunction&& other)`
+```c++
+public:
+	inline SafeFunction(SafeFunction<GenericTypeOfReturn(GenericTypesOfArguments...)>&& other) noexcept(false);
+```
+
+	Move constructor of type `SafeFunction`. It constructs an instance of type `SafeFunction` from another one.
+
+- `~SafeFunction()`
+```c++
+protected:
+	inline virtual ~SafeFunction() noexcept(false) override
+```
+
+	Destructor of type `SafeFunction`. It destructs an instance of type `SafeFunction`.
+
+- `operator=(const SafeFunction<GenericTypeOfReturn(GenericTypesOfArguments...)>& other)`
+```c++
+public:
+	inline SafeFunction<GenericTypeOfReturn(GenericTypesOfArguments...)>& operator=(const SafeFunction<GenericTypeOfReturn(GenericTypesOfArguments...)>& other);
+```
+	
+	Overload of `operator=`, copy assignment operator. It performs copy assignment from an instance of type `SafeFunction` to another one.
+	
+- `operator=(SafeFunction<GenericTypeOfReturn(GenericTypesOfArguments...)>&& other)`
+```c++
+public:
+	inline SafeFunction<GenericTypeOfReturn(GenericTypesOfArguments...)>& operator=(SafeFunction<GenericTypeOfReturn(GenericTypesOfArguments...)>&& other) noexcept(false);
+```
+	
+	Overload of `operator=`, move assignment operator. It performs move assignment from an instance of type `SafeFunction` to another one.
+
+- `operator()(GenericTypesOfArguments... arguments)`
+```c++
+public:
+	inline GenericTypeOfReturn operator()(GenericTypesOfArguments... arguments) const;
+```
+
+	Overload of `operator()`, function call operator. It invokes the current instance of `SafeFunction` as a functor.
+
+- `checkInvocability()`
+```c++
+private:
+	bool checkInvocability() const noexcept;
+```
+
+	This method checks if the current instance of `SafeFunction` is invocable.
+
+- `isInvocable()`
+```c++
+public:
+	bool isInvocable() const noexcept;
+```
+
+	This method shows if the current instance of `SafeFunction` is invocable.
+
+#### <a name="safeevent"></a> SafeEvent
+
+##### Declaration
+
+```c++
+class SafeEvent;
+```
+
+
+##### Description
+
+	Declared and defined in `SafeEvent.h`. An event class that inherits `SafeContextBase` and provides base event-driven mechanisms under the safe context.
+
+
+##### Member Types
+
+- `SafeEventOccurrence`
+
+	An alias for `SafeFunction<void()>`. It acts like an event-driven functional type.
+
+
+##### Methods
+
+- `SafeEvent()`
+```c++
+public:
+	explicit SafeEvent();
+```
+
+	Default constructor of type `SafeEvent`. It constructs an instance of `SafeEvent`.
+
+- `SafeEvent(const SafeEventOccurrence& occurrence)`
+```c++
+public:
+	explicit SafeEvent(const SafeEventOccurrence& occurrence);
+```
+
+	A specialized constructor of `SafeEvent`. It constructs an instance of `SafeEvent` and specifies how the event occurs by argument `occurrence`.
+
+- `SafeEvent(const SafeEvent& other)`
+```c++
+public:
+	SafeEvent(const SafeEvent& other);
+```
+	
+	Copy constructor of type `SafeEvent`. It constructs an instance of type `SafeEvent` from another one.
+
+- `SafeEvent(SafeEventOccurrence&& occurrence)`
+```c++
+public:
+	explicit SafeEvent(SafeEventOccurrence&& occurrence) noexcept(false);
+```
+
+	A specialized move constructor of `SafeEvent`. It constructs an instance of `SafeEvent` and specifies how the event occurs by argument `occurrence`.
+
+- `SafeEvent(SafeEvent&& other)`
+```c++
+public:
+	SafeEvent(SafeEvent&& other) noexcept(false);
+```
+
+	Move constructor of type `SafeEvent`. It constructs an instance of type `SafeEvent` from another one.
+
+- `~SafeEvent()`
+```c++
+protected:
+	virtual ~SafeEvent() noexcept(false) override;
+```
+
+	Destructor of type `SafeEvent`. It destructs an instance of type `SafeEvent`.
+
+- `operator=(const SafeEvent& other)`
+```c++
+public:
+	SafeEvent& operator=(const SafeEvent& other);
+```
+	
+	Overload of `operator=`, copy assignment operator. It performs copy assignment from an instance of type `SafeEvent` to another one.
+	
+- `operator=(SafeEvent&& other)`
+```c++
+public:
+	SafeEvent& operator=(SafeEvent&& other) noexcept(false);
+```
+	
+	Overload of `operator=`, move assignment operator. It performs move assignment from an instance of type `SafeEvent` to another one.
+
+- `getCancellation()`
+```c++
+public:
+	bool getCancellation() const noexcept;
+```
+
+	This method returns the cancellation state of the current instance of `SafeEvent`.
+
+- `setCancellation(const bool& cancellation)`
+```c++
+public:
+	void setCancellation(const bool& cancellation) noexcept;
+```
+
+	This method assigns the cancellation state of the current instance of `SafeEvent`.
+
+- `setCancellation(bool&& cancellation)`
+```c++
+public:
+	void setCancellation(bool&& cancellation) noexcept;
+```
+
+	This method assigns the cancellation state of the current instance of `SafeEvent`.
+
+- `getOccurrence()`
+```c++
+public:
+	SafeEventOccurrence getOccurrence() const;
+```
+
+	This method returns the event-driven function of the current instance of `SafeEvent`.
+
+- `setCancellation(const bool& cancellation)`
+```c++
+public:
+	void setOccurrence(const SafeEventOccurrence& occurrence);
+```
+
+	This method assigns the event-driven function of the current instance of `SafeEvent`.
+
+- `setCancellation(bool&& cancellation)`
+```c++
+public:
+	void setOccurrence(SafeEventOccurrence&& occurrence) noexcept;
+```
+
+	This method assigns the event-driven function of the current instance of `SafeEvent`.
+
+- `broadcast()`
+```c++
+public:
+	void broadcast();
+```
+
+	This method broadcasts the current event and triggers the underlying event-driven function.
+
+- `cancel()`
+```c++
+public:
+	void cancel() noexcept;
+```
+
+	This method cancels the current event and halts the underlying event-driven function.
+
+- `raise()`
+```c++
+public:
+	void raise() noexcept;
+```
+
+	This method raises the current event if the event has been cancelled.
+
+- `abrogate()`
+```c++
+public:
+	void abrogate() noexcept;
+```
+
+	This method abrogates the current event if the event is broadcasting.
+
+
+#### <a name="safeeventhandlergenerictypeofsafeevent"></a> SafeEventHandler&lt;GenericTypeOfSafeEvent&gt;
+
+##### Declaration
+
+```c++
+template<typename GenericTypeOfSafeEvent> class SafeEventHandler;
+```
+
+
+##### Description
+
+	Declared and defined in `SafeEvent.h`. An event handler class that inherits `SafeContextBase`, wraps `SafeFunction<void(const GenericTypeOfSafeEvent&)>` and provides base event-driven handling mechanisms under the safe context.
+
+
+##### Member Types
+
+- `SafeEventHandle`
+
+	An alias for `SafeFunction<void(const GenericTypeOfSafeEvent&)>`. It acts like an event-driven handling functional type.
+
+
+##### Methods
+
+- `SafeEventHandler()`
+```c++
+public:
+	inline explicit SafeEventHandler();
+```
+
+	Default constructor of type `SafeEventHandler`. It constructs an instance of `SafeEventHandler`.
+
+- `SafeEventHandler(const std::function<void(const GenericTypeOfSafeEvent&)>& eventHandle)`
+```c++
+public:
+	inline explicit SafeEventHandler(const std::function<void(const GenericTypeOfSafeEvent&)>& eventHandle);
+```
+
+	A specialized constructor of `SafeEventHandler`. It constructs an instance of `SafeEventHandler` from argument `eventHandle`.
+
+- `SafeEventHandler(const SafeEventHandler<GenericTypeOfSafeEvent>& other)`
+```c++
+public:
+	inline SafeEventHandler(const SafeEventHandler<GenericTypeOfSafeEvent>& other) noexcept(false);
+```
+	
+	Copy constructor of type `SafeEventHandler`. It constructs an instance of type `SafeEventHandler` from another one.
+
+- `SafeEventHandler(std::function<void(const GenericTypeOfSafeEvent&)>&& eventHandle)`
+```c++
+public:
+	inline explicit SafeEventHandler(std::function<void(const GenericTypeOfSafeEvent&)>&& eventHandle);
+```
+
+	A specialized move constructor of `SafeEventHandler`. It constructs an instance of `SafeEventHandler` from argument `eventHandle`.
+
+- `SafeEventHandler(SafeEventHandler<GenericTypeOfSafeEvent>&& other)`
+```c++
+public:
+	inline SafeEventHandler(SafeEventHandler<GenericTypeOfSafeEvent>&& other) noexcept(false);
+```
+
+	Move constructor of type `SafeEventHandler`. It constructs an instance of type `SafeEventHandler` from another one.
+
+- `~SafeEventHandler()`
+```c++
+protected:
+	inline virtual ~SafeEventHandler() noexcept(false) override;
+```
+
+	Destructor of type `SafeEventHandler`. It destructs an instance of type `SafeEventHandler`.
+
+- `operator=(const SafeEventHandler& other)`
+```c++
+public:
+	inline SafeEventHandler<GenericTypeOfSafeEvent>& operator=(const SafeEventHandler<GenericTypeOfSafeEvent>& other);
+```
+	
+	Overload of `operator=`, copy assignment operator. It performs copy assignment from an instance of type `SafeEventHandler` to another one.
+	
+- `operator=(SafeEventHandler&& other)`
+```c++
+public:
+	inline SafeEventHandler<GenericTypeOfSafeEvent>& operator=(SafeEventHandler<GenericTypeOfSafeEvent>&& other) noexcept(false);
+```
+	
+	Overload of `operator=`, move assignment operator. It performs move assignment from an instance of type `SafeEventHandler` to another one.
+
+- `handle(const GenericTypeOfSafeEvent& event)`
+```c++
+public:
+	inline void handle(const GenericTypeOfSafeEvent& event);
+```
+
+	This method handles an event provided by argument `event`.
+
+- `handle(const GenericTypeOfSafeEvent* const eventPointer)`
+```c++
+public:
+	inline void handle(const GenericTypeOfSafeEvent* const eventPointer);
+```
+
+	This method handles an event provided by argument `eventPointer`.
+
+
+#### <a name="safecontextexception"></a> SafeContextException
+
+##### Declaration
+
+```c++
+class SafeContextException;
+```
+
+
+##### Description
+
+	Declared and defined in `SafeContextException.h`. An exception class that provides basic exception handling mechanisms merely for `Safe` runtime library. This class inherits `SafeContextBase` and `std::exception`.
 
 
 ##### Methods
@@ -451,7 +875,7 @@ public:
 - `SafeContextException(std::string&& message)`
 ```c++
 public:
-	explicit SafeContextException(std::string&& message) noexcept;
+	explicit SafeContextException(std::string&& message);
 ```
 
 	A specialized move constructor of `SafeContextException`. It constructs an instance of `SafeContextException` with a custom message provided by argument `message`.
@@ -459,10 +883,18 @@ public:
 - `SafeContextException(SafeContextException&& other)`
 ```c++
 public:
-	SafeContextException(SafeContextException&& other) noexcept;
+	SafeContextException(SafeContextException&& other) noexcept(false);
 ```
 
 	Move constructor of type `SafeContextException`. It constructs an instance of type `SafeContextException` from another one.
+
+- `~SafeContextException()`
+```c++
+protected:
+	virtual ~SafeContextException() noexcept override;
+```
+
+	Destructor of type `SafeContextException`. It destructs an instance of type `SafeContextException`.
 
 - `operator=(const SafeContextException& other)`
 ```c++
@@ -475,7 +907,7 @@ public:
 - `operator=(SafeContextException&& other)`
 ```c++
 public:
-	SafeContextException& operator=(SafeContextException&& other);
+	SafeContextException& operator=(SafeContextException&& other) noexcept;
 ```
 	
 	Overload of `operator=`, move assignment operator. It performs move assignment from an instance of type `SafeContextException` to another one.
@@ -523,7 +955,7 @@ public:
 For detailed semantics, examples and usage patterns see [Guide](Guide.md).
 
 
-### Legal and Licensing Information
+### Legal & Licensing Information
 
 Required Notice: Copyright@2026 Duc Nguyen (workofduc@gmail.com) 
 
